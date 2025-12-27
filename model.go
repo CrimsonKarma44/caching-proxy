@@ -1,8 +1,9 @@
 package Caching_Proxy
 
 import (
-	"github.com/gregjones/httpcache"
 	"net/http"
+
+	"github.com/gregjones/httpcache"
 )
 
 type CacheAwareTransport struct {
@@ -22,5 +23,27 @@ func (t *CacheAwareTransport) RoundTrip(req *http.Request) (*http.Response, erro
 		resp.Header.Set("X-Cache", "MISS")
 	}
 
+	return resp, nil
+}
+
+type HeaderInjectorTransport struct {
+	Transport http.RoundTripper
+}
+
+func (t *HeaderInjectorTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	transport := t.Transport
+	if transport == nil {
+		transport = http.DefaultTransport
+	}
+	resp, err := transport.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// If no cache control header is present, add one to allow caching
+	// This helps when the origin server doesn't send cache headers
+	if resp.Header.Get("Cache-Control") == "" {
+		resp.Header.Set("Cache-Control", "public, max-age=3600")
+	}
 	return resp, nil
 }
