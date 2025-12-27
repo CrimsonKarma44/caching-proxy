@@ -14,10 +14,16 @@ const cacheDir = "/tmp/httpcache"
 func main() {
 	cache := diskcache.New(cacheDir) // Disk cache
 	cacheTransport := httpcache.NewTransport(cache)
-	transport := &Caching_Proxy.CacheAwareTransport{Transport: cacheTransport}
+
+	// Use HeaderInjectorTransport to ensure responses are cacheable
+	// This wraps the default transport and adds Cache-Control headers if missing
+	cacheTransport.Transport = &Caching_Proxy.HeaderInjectorTransport{Transport: http.DefaultTransport}
+
+	// Wrap the cache transport with our CacheAwareTransport to set X-Cache
+	cacheAwareTransport := &Caching_Proxy.CacheAwareTransport{Transport: cacheTransport}
 
 	client := &http.Client{
-		Transport: transport,
+		Transport: cacheAwareTransport,
 	}
 	if len(os.Args) == 5 {
 		switch os.Args[1] {
